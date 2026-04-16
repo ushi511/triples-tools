@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tripleS 小卡整理工具</title>
+    <title>tripleS 全季節小卡一鍵整理神器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
@@ -11,7 +11,7 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: '#5b21b6',
+                        brand: '#5b21b6', // tripleS 應援色風格 (深紫)
                         brandLight: '#8b5cf6'
                     }
                 }
@@ -25,21 +25,27 @@
 <body class="bg-gray-50 min-h-screen p-4 md:p-8 flex items-center justify-center">
 
     <div class="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
         <div class="bg-brand text-white p-6 text-center">
-            <h1 class="text-2xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>tripleS 小卡整理工具</h1>
-            <p class="text-sm mt-2 opacity-80">Ctrl+A 貼上網頁原始文字，轉化為 BB 格式</p>
+            <h1 class="text-2xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>tripleS Objekt 整理神器</h1>
+            <p class="text-sm mt-2 opacity-90 font-medium text-brandLight bg-white/10 inline-block px-3 py-1 rounded-full">
+                🌟 終極版：支援全季節混排、自動記憶成員、智能完美排序
+            </p>
         </div>
 
         <div class="p-6 md:p-8 space-y-6">
+            
+            <!-- Input Section -->
             <div>
                 <label for="rawInput" class="block text-sm font-semibold text-gray-700 mb-2">
-                    1. 貼上您的原始資料 (支援從網頁直接全選複製貼上)
+                    1. 貼上您的原始資料 (支援直接網頁複製、多季混搭、連續卡號免打名字)
                 </label>
                 <textarea id="rawInput" rows="6" 
                     class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brandLight focus:border-brandLight transition-all resize-none"
-                    placeholder="例如：&#10;SeoYeon B2 101ZSeoYeon B2 102Z&#10;HyeRin B2 117Z"></textarea>
+                    placeholder="例如：&#10;SeoYeon A2 101ZSeoYeon B2 102Z&#10;Hayeon D104Z D105Z D106Z"></textarea>
             </div>
 
+            <!-- Action Button -->
             <div class="flex justify-center">
                 <button onclick="formatData()" 
                     class="bg-brand hover:bg-brandLight text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all flex items-center transform hover:-translate-y-0.5">
@@ -47,10 +53,11 @@
                 </button>
             </div>
 
+            <!-- Output Section -->
             <div>
                 <div class="flex justify-between items-end mb-2">
                     <label for="resultOutput" class="block text-sm font-semibold text-gray-700">
-                        2. 整理結果 (已自動去重與排序)
+                        2. 整理結果 (已去重並按 A>B>...>AA>BB 排序)
                     </label>
                     <button onclick="copyResult()" id="copyBtn"
                         class="text-brand text-sm font-semibold hover:text-brandLight transition-colors flex items-center">
@@ -61,14 +68,17 @@
                     class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none resize-none font-mono text-sm"
                     placeholder="整理後的結果會顯示在這裡..."></textarea>
             </div>
+
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
         <i class="fa-solid fa-circle-check mr-2"></i> 複製成功！
     </div>
 
     <script>
+        // 官方成員順序表 (S1 - S24)
         const memberOrder = [
             "SeoYeon", "HyeRin", "JiWoo", "ChaeYeon", "YooYeon", "SooMin", 
             "NaKyoung", "YuBin", "Kaede", "DaHyun", "Kotone", "YeonJi", 
@@ -79,51 +89,110 @@
         function formatData() {
             const input = document.getElementById('rawInput').value;
             const outputEl = document.getElementById('resultOutput');
+            
             if (!input.trim()) {
                 outputEl.value = "請先貼上資料！";
                 return;
             }
-            const regex = /([a-zA-Z]+)\s*B2\s*(\d{3})Z/g;
+
+            // 【終極邏輯】：支援省略代數的格式 (如 D104Z)，以及連續卡號省略名稱 (如 Hayeon D104Z D105Z)
+            const regex = /(?:([a-zA-Z]{3,})\s*)?([a-zA-Z])(\d)?\s*(\d{3})Z/g;
+            
             const memberCards = new Map();
+            let currentName = ""; 
+
             let match;
             while ((match = regex.exec(input)) !== null) {
                 const rawName = match[1];
-                let properName = rawName;
-                const foundName = memberOrder.find(m => m.toLowerCase() === rawName.toLowerCase());
-                if (foundName) properName = foundName;
-                const cardNumber = match[2];
-                if (!memberCards.has(properName)) memberCards.set(properName, new Set());
-                memberCards.get(properName).add(cardNumber);
+                
+                if (rawName) {
+                    let properName = rawName;
+                    const foundName = memberOrder.find(m => m.toLowerCase() === rawName.toLowerCase());
+                    if (foundName) properName = foundName;
+                    currentName = properName;
+                }
+
+                if (!currentName) continue;
+
+                const seasonLetter = match[2].toUpperCase(); 
+                const seasonNum = match[3] ? parseInt(match[3], 10) : 1; 
+                const cardNumber = match[4];                 
+
+                const prefix = seasonLetter.repeat(seasonNum);
+                const finalCardCode = `${prefix}${cardNumber}`;
+
+                if (!memberCards.has(currentName)) {
+                    memberCards.set(currentName, new Set());
+                }
+                memberCards.get(currentName).add(finalCardCode);
             }
+
             if (memberCards.size === 0) {
-                outputEl.value = "找不到符合的資料。";
+                outputEl.value = "找不到符合的資料。\n請確認格式是否類似：SeoYeon A2 101Z 或 Hayeon D104Z";
                 return;
             }
+
             let resultLines = [];
+
+            // 客製化排序函數: A > B > C > AA > BB > 101 > 102
+            const sortCards = (a, b) => {
+                const matchA = a.match(/^([A-Z]+)(\d+)$/);
+                const matchB = b.match(/^([A-Z]+)(\d+)$/);
+
+                if (matchA && matchB) {
+                    const prefixA = matchA[1];
+                    const numA = parseInt(matchA[2], 10);
+                    const prefixB = matchB[1];
+                    const numB = parseInt(matchB[2], 10);
+
+                    // 1. 比較字母長度 (長度1優先)
+                    if (prefixA.length !== prefixB.length) {
+                        return prefixA.length - prefixB.length;
+                    }
+                    // 2. 比較字母順序
+                    if (prefixA !== prefixB) {
+                        return prefixA.localeCompare(prefixB);
+                    }
+                    // 3. 比較數字大小
+                    return numA - numB;
+                }
+                return a.localeCompare(b);
+            };
+
+            // 依照官方成員順序來排列輸出
             memberOrder.forEach(member => {
                 if (memberCards.has(member)) {
-                    const cards = Array.from(memberCards.get(member)).sort((a, b) => parseInt(a) - parseInt(b));
-                    const formattedCards = cards.map(num => `BB${num}`).join(' ');
-                    resultLines.push(`${member} ${formattedCards}`);
-                    memberCards.delete(member);
+                    const cards = Array.from(memberCards.get(member)).sort(sortCards);
+                    resultLines.push(`${member} ${cards.join(' ')}`);
+                    memberCards.delete(member); 
                 }
             });
+
+            // 處理名單外人員
             for (let [member, cardsSet] of memberCards.entries()) {
-                const cards = Array.from(cardsSet).sort((a, b) => parseInt(a) - parseInt(b));
-                const formattedCards = cards.map(num => `BB${num}`).join(' ');
-                resultLines.push(`${member} ${formattedCards}`);
+                const cards = Array.from(cardsSet).sort(sortCards);
+                resultLines.push(`${member} ${cards.join(' ')}`);
             }
+
             outputEl.value = resultLines.join('\n');
         }
 
         function copyResult() {
             const outputEl = document.getElementById('resultOutput');
-            if (!outputEl.value || outputEl.value.startsWith("找不到")) return;
+            if (!outputEl.value || outputEl.value.includes("找不到符合的資料") || outputEl.value === "請先貼上資料！") {
+                return; 
+            }
             outputEl.select();
             document.execCommand('copy');
+            showToast();
+        }
+
+        function showToast() {
             const toast = document.getElementById('toast');
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
         }
     </script>
 </body>
