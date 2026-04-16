@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tripleS 小卡一鍵整理神器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#5b21b6',
+                        brandLight: '#8b5cf6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Microsoft JhengHei'; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8 flex items-center justify-center">
+
+    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-brand text-white p-6 text-center">
+            <h1 class="text-2xl font-bold tracking-wider"><i class="fa-solid fa-layer-group mr-2"></i>tripleS Objekt B2 整理神器</h1>
+            <p class="text-sm mt-2 opacity-80">貼上網頁原始文字，瞬間轉化為 BB 編碼格式</p>
+        </div>
+
+        <div class="p-6 md:p-8 space-y-6">
+            <div>
+                <label for="rawInput" class="block text-sm font-semibold text-gray-700 mb-2">
+                    1. 貼上您的原始資料 (支援從網頁直接全選複製貼上)
+                </label>
+                <textarea id="rawInput" rows="6" 
+                    class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brandLight focus:border-brandLight transition-all resize-none"
+                    placeholder="例如：&#10;SeoYeon B2 101ZSeoYeon B2 102Z&#10;HyeRin B2 117Z"></textarea>
+            </div>
+
+            <div class="flex justify-center">
+                <button onclick="formatData()" 
+                    class="bg-brand hover:bg-brandLight text-white font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all flex items-center transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> 開始整理
+                </button>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-end mb-2">
+                    <label for="resultOutput" class="block text-sm font-semibold text-gray-700">
+                        2. 整理結果 (已自動去重與排序)
+                    </label>
+                    <button onclick="copyResult()" id="copyBtn"
+                        class="text-brand text-sm font-semibold hover:text-brandLight transition-colors flex items-center">
+                        <i class="fa-regular fa-copy mr-1"></i> 複製結果
+                    </button>
+                </div>
+                <textarea id="resultOutput" rows="8" readonly
+                    class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none resize-none font-mono text-sm"
+                    placeholder="整理後的結果會顯示在這裡..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <i class="fa-solid fa-circle-check mr-2"></i> 複製成功！
+    </div>
+
+    <script>
+        const memberOrder = [
+            "SeoYeon", "HyeRin", "JiWoo", "ChaeYeon", "YooYeon", "SooMin", 
+            "NaKyoung", "YuBin", "Kaede", "DaHyun", "Kotone", "YeonJi", 
+            "Nien", "SoHyun", "Xinyu", "Mayu", "Lynn", "JooBin", 
+            "HaYeon", "ShiOn", "ChaeWon", "SullIn", "SeoAh", "JiYeon"
+        ];
+
+        function formatData() {
+            const input = document.getElementById('rawInput').value;
+            const outputEl = document.getElementById('resultOutput');
+            if (!input.trim()) {
+                outputEl.value = "請先貼上資料！";
+                return;
+            }
+            const regex = /([a-zA-Z]+)\s*B2\s*(\d{3})Z/g;
+            const memberCards = new Map();
+            let match;
+            while ((match = regex.exec(input)) !== null) {
+                const rawName = match[1];
+                let properName = rawName;
+                const foundName = memberOrder.find(m => m.toLowerCase() === rawName.toLowerCase());
+                if (foundName) properName = foundName;
+                const cardNumber = match[2];
+                if (!memberCards.has(properName)) memberCards.set(properName, new Set());
+                memberCards.get(properName).add(cardNumber);
+            }
+            if (memberCards.size === 0) {
+                outputEl.value = "找不到符合的資料。";
+                return;
+            }
+            let resultLines = [];
+            memberOrder.forEach(member => {
+                if (memberCards.has(member)) {
+                    const cards = Array.from(memberCards.get(member)).sort((a, b) => parseInt(a) - parseInt(b));
+                    const formattedCards = cards.map(num => `BB${num}`).join(' ');
+                    resultLines.push(`${member} ${formattedCards}`);
+                    memberCards.delete(member);
+                }
+            });
+            for (let [member, cardsSet] of memberCards.entries()) {
+                const cards = Array.from(cardsSet).sort((a, b) => parseInt(a) - parseInt(b));
+                const formattedCards = cards.map(num => `BB${num}`).join(' ');
+                resultLines.push(`${member} ${formattedCards}`);
+            }
+            outputEl.value = resultLines.join('\n');
+        }
+
+        function copyResult() {
+            const outputEl = document.getElementById('resultOutput');
+            if (!outputEl.value || outputEl.value.startsWith("找不到")) return;
+            outputEl.select();
+            document.execCommand('copy');
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 2500);
+        }
+    </script>
+</body>
+</html>
